@@ -16,10 +16,10 @@
   const SUN_PATH = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>';
   const MOON_PATH = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
 
+  // Theme is held in an in-memory variable only — no persistent storage used.
   function setTheme(theme, redraw = true) {
     root.setAttribute("data-theme", theme);
     themeIcon.innerHTML = theme === "dark" ? MOON_PATH : SUN_PATH;
-    try { localStorage.setItem("fulcrum-theme", theme); } catch (e) {}
     if (redraw) {
       renderRadar(currentPlayer);
       renderTrend(currentPlayer);
@@ -29,10 +29,8 @@
     const next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
     setTheme(next);
   });
-  let savedTheme = "dark";
-  try { savedTheme = localStorage.getItem("fulcrum-theme") || "dark"; } catch (e) {}
   // First run: don't call renderers before they're defined further down.
-  setTheme(savedTheme, false);
+  setTheme("dark", false);
 
   // -----------------------------------------------------------------------
   // LEADERBOARD — render, sort, filter, select
