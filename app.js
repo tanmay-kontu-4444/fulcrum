@@ -4,6 +4,9 @@
   const $ = (sel, ctx = document) => ctx.querySelector(sel);
   const $$ = (sel, ctx = document) => Array.from(ctx.querySelectorAll(sel));
 
+  // Selected player is declared up-front so all render fns can reference it safely.
+  let currentPlayer = D.PLAYERS[0];
+
   // -----------------------------------------------------------------------
   // THEME
   // -----------------------------------------------------------------------
@@ -13,13 +16,14 @@
   const SUN_PATH = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>';
   const MOON_PATH = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
 
-  function setTheme(theme) {
+  function setTheme(theme, redraw = true) {
     root.setAttribute("data-theme", theme);
     themeIcon.innerHTML = theme === "dark" ? MOON_PATH : SUN_PATH;
     try { localStorage.setItem("fulcrum-theme", theme); } catch (e) {}
-    // Redraw canvas-like SVGs that depend on CSS vars via getComputedStyle
-    renderRadar(currentPlayer);
-    renderTrend(currentPlayer);
+    if (redraw) {
+      renderRadar(currentPlayer);
+      renderTrend(currentPlayer);
+    }
   }
   themeBtn.addEventListener("click", () => {
     const next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
@@ -27,7 +31,8 @@
   });
   let savedTheme = "dark";
   try { savedTheme = localStorage.getItem("fulcrum-theme") || "dark"; } catch (e) {}
-  setTheme(savedTheme);
+  // First run: don't call renderers before they're defined further down.
+  setTheme(savedTheme, false);
 
   // -----------------------------------------------------------------------
   // LEADERBOARD — render, sort, filter, select
@@ -189,8 +194,6 @@
   // -----------------------------------------------------------------------
   // PLAYER DETAIL
   // -----------------------------------------------------------------------
-  let currentPlayer = D.PLAYERS[0];
-
   function selectPlayer(id) {
     const p = D.PLAYERS.find(x => x.id === id);
     if (!p) return;
@@ -325,10 +328,10 @@
     });
     // Axis labels
     axes.forEach((k, i) => {
-      const [x, y] = pt(i, R + 22);
+      const [x, y] = pt(i, R + 18);
       const anchor = Math.abs(x) < 1 ? "middle" : x > 0 ? "start" : "end";
       html += `<text x="${x}" y="${y}" text-anchor="${anchor}" dominant-baseline="middle"
-        fill="${faint}" font-size="10.5" font-family="ui-sans-serif, system-ui" letter-spacing="0.12em">
+        fill="${faint}" font-size="10" font-family="ui-sans-serif, system-ui" letter-spacing="0.10em">
         ${LABELS[k].toUpperCase()}
       </text>`;
     });

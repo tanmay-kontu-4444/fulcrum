@@ -743,7 +743,7 @@
 
     /* Radar */
     .radar-block { display: grid; grid-template-columns: 1.2fr 1fr; gap: var(--s-5); }
-    #radar { width: 100%; aspect-ratio: 1; max-width: 320px; }
+    #radar { width: 100%; aspect-ratio: 420/340; max-width: 420px; }
 
     .expect-list { display: flex; flex-direction: column; gap: var(--s-3); }
     .expect-row { display: flex; flex-direction: column; gap: 4px; }
@@ -788,6 +788,7 @@
       display: grid;
       grid-template-columns: 1fr 1.2fr;
       gap: var(--s-5);
+      align-items: start;
     }
     .match-head {
       display: grid;
@@ -966,22 +967,36 @@
       .nav-inner { grid-template-columns: auto 1fr auto; }
     }
     @media (max-width: 720px) {
-      :root { --text-3xl: 34px; --text-2xl: 24px; --text-xl: 19px; }
+      :root { --text-3xl: 32px; --text-2xl: 22px; --text-xl: 18px; }
       .wrap { padding: 0 var(--s-4); }
       .hero { padding: var(--s-10) 0 var(--s-8); }
       section { padding: var(--s-10) 0; }
+      .hero-top { flex-wrap: wrap; row-gap: 8px; }
       .kpi-strip { grid-template-columns: 1fr; }
       .kpi { border-right: 0; border-bottom: 1px solid var(--hairline); }
       .kpi:last-child { border-bottom: 0; }
-      .search { width: 140px; }
-      .search:focus-within { width: 160px; }
+      /* Compact nav: hide search + competition selector on small viewports;
+         the search icon can remain accessible via keyboard shortcut ⌘K. */
+      .search { display: none; }
+      .select { display: none; }
       .brand-sub { display: none; }
       .section-head { flex-direction: column; align-items: flex-start; }
       .stat-row { grid-template-columns: 1fr; }
       .stat-cell { border-right: 0; border-bottom: 1px solid var(--hairline); padding: var(--s-3) 0 !important; }
       .stat-cell:last-child { border-bottom: 0; }
-      .filters { padding: var(--s-3); }
+      /* Horizontally scrollable filter chip rows */
+      .filters { padding: var(--s-3); flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .filter-group { flex-shrink: 0; }
       td.hide-sm, th.hide-sm { display: none; }
+      /* Player-detail profile: stack big score below name */
+      .profile { flex-wrap: wrap; }
+      .big-score { margin-left: 0; text-align: left; width: 100%; margin-top: 4px; }
+      .big-score .val { font-size: 32px; }
+      /* Match head: stack the score on its own row */
+      .match-head { grid-template-columns: 1fr 1fr; gap: var(--s-3); }
+      .match-score { grid-column: 1 / -1; justify-content: center; order: -1; }
+      /* Footer stacks */
+      .footer-inner { flex-direction: column; align-items: flex-start; gap: var(--s-3); }
     }
   </style>
 </head>
@@ -1239,7 +1254,7 @@
           <span class="badge">Percentile vs. Championship peers</span>
         </div>
         <div class="radar-block">
-          <svg id="radar" viewBox="-160 -160 320 320" role="img" aria-label="Radar chart of player sub-components">
+          <svg id="radar" viewBox="-210 -170 420 340" role="img" aria-label="Radar chart of player sub-components">
             <!-- injected -->
           </svg>
           <div class="expect-list" id="radar-legend"><!-- injected --></div>
