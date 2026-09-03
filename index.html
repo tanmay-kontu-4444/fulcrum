@@ -1,0 +1,1447 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fulcrum · Championship Intelligence</title>
+  <meta name="description" content="A context-adjusted player performance metric for scouting the English Championship. Built for scouts, analysts, and coaches." />
+
+  <!-- Fonts: Cabinet Grotesk (display) + Satoshi (body). Distinctive, restrained. -->
+  <link rel="preconnect" href="https://api.fontshare.com" crossorigin />
+  <link href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@500,700,800&f[]=satoshi@400,500,700&f[]=jetbrains-mono@400,500&display=swap" rel="stylesheet" />
+
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230A0B09'/><path d='M6 22 L16 6 L26 22 Z' fill='none' stroke='%23C7F284' stroke-width='2.2' stroke-linejoin='round'/><circle cx='16' cy='19' r='2.2' fill='%23C7F284'/></svg>" />
+
+  <style>
+    /* =====================================================================
+       DESIGN TOKENS
+       ===================================================================== */
+    :root {
+      /* Type scale */
+      --font-display: "Cabinet Grotesk", "Inter", ui-sans-serif, system-ui, sans-serif;
+      --font-body: "Satoshi", "Inter", ui-sans-serif, system-ui, sans-serif;
+      --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+      --text-xs: 11px;
+      --text-sm: 12.5px;
+      --text-base: 14px;
+      --text-md: 15px;
+      --text-lg: 17px;
+      --text-xl: 22px;
+      --text-2xl: 30px;
+      --text-3xl: 44px;
+
+      /* Spacing */
+      --s-1: 4px;   --s-2: 8px;   --s-3: 12px;
+      --s-4: 16px;  --s-5: 20px;  --s-6: 24px;
+      --s-8: 32px;  --s-10: 40px; --s-12: 48px;
+      --s-16: 64px; --s-20: 80px;
+
+      /* Radius (kept restrained — no big pillows) */
+      --r-sm: 4px;
+      --r-md: 6px;
+      --r-lg: 10px;
+      --r-full: 999px;
+
+      /* Motion */
+      --ease: cubic-bezier(.2, .7, .2, 1);
+      --dur-1: 120ms;
+      --dur-2: 220ms;
+      --dur-3: 380ms;
+
+      /* Layout */
+      --max-w: 1280px;
+      --nav-h: 60px;
+    }
+
+    /* Dark theme (default) — deep warm neutrals + tactical lime accent */
+    :root, [data-theme="dark"] {
+      --bg:            #0A0B09;
+      --bg-elev:       #101210;
+      --surface:       #14161395;   /* alpha-blended */
+      --surface-solid: #141613;
+      --surface-2:     #1A1D19;
+      --surface-3:     #22261F;
+      --border:        rgba(255,255,255,.07);
+      --border-strong: rgba(255,255,255,.12);
+      --hairline:      rgba(255,255,255,.05);
+
+      --text:          #E7E9E3;
+      --text-muted:    #9AA095;
+      --text-faint:    #64685F;
+
+      --accent:        #C7F284;      /* pitch lime */
+      --accent-2:      #7ED957;
+      --accent-ink:    #0B120A;      /* text on accent */
+      --accent-soft:   rgba(199,242,132,.10);
+      --accent-line:   rgba(199,242,132,.22);
+
+      --warn:          #E9B872;
+      --error:         #E88A8A;
+      --pos:           #7ED957;
+      --neg:           #E88A8A;
+
+      /* Chart palette (context-aware) */
+      --c1: #C7F284;
+      --c2: #7BB0FF;
+      --c3: #E9B872;
+      --c4: #E88A8A;
+      --c5: #9C8CFF;
+
+      --shadow: 0 1px 0 rgba(255,255,255,.03) inset, 0 20px 40px -24px rgba(0,0,0,.8);
+    }
+
+    [data-theme="light"] {
+      --bg:            #F6F5F0;
+      --bg-elev:       #FBFAF6;
+      --surface:       #FFFFFFcc;
+      --surface-solid: #FFFFFF;
+      --surface-2:     #F1F0EA;
+      --surface-3:     #E9E8E1;
+      --border:        rgba(10,12,9,.09);
+      --border-strong: rgba(10,12,9,.16);
+      --hairline:      rgba(10,12,9,.06);
+
+      --text:          #17190F;
+      --text-muted:    #5C6155;
+      --text-faint:    #8E9285;
+
+      --accent:        #4B7B1F;
+      --accent-2:      #6B9A2E;
+      --accent-ink:    #FFFFFF;
+      --accent-soft:   rgba(75,123,31,.08);
+      --accent-line:   rgba(75,123,31,.28);
+
+      --warn:          #A55B12;
+      --error:         #B4362E;
+      --pos:           #3E7D28;
+      --neg:           #B4362E;
+
+      --c1: #4B7B1F;
+      --c2: #285CA6;
+      --c3: #B87418;
+      --c4: #B4362E;
+      --c5: #6C4CBF;
+
+      --shadow: 0 1px 0 rgba(0,0,0,.02) inset, 0 20px 40px -30px rgba(0,0,0,.15);
+    }
+
+    /* =====================================================================
+       BASE
+       ===================================================================== */
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: var(--text-base);
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      font-feature-settings: "ss01", "cv11";
+    }
+    /* Subtle top-of-page ambient gradient — never a blob, no purple */
+    body::before {
+      content: "";
+      position: fixed; inset: 0;
+      background:
+        radial-gradient(1200px 500px at 80% -10%, var(--accent-soft), transparent 60%),
+        radial-gradient(900px 400px at 0% 0%, rgba(255,255,255,.02), transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    [data-theme="light"] body::before {
+      background:
+        radial-gradient(1200px 500px at 80% -10%, var(--accent-soft), transparent 60%);
+    }
+
+    h1, h2, h3, h4 {
+      font-family: var(--font-display);
+      font-weight: 700;
+      letter-spacing: -0.015em;
+      color: var(--text);
+      margin: 0;
+      line-height: 1.15;
+    }
+    h1 { font-size: var(--text-3xl); letter-spacing: -0.03em; }
+    h2 { font-size: var(--text-2xl); letter-spacing: -0.025em; }
+    h3 { font-size: var(--text-xl); }
+    h4 { font-size: var(--text-lg); }
+    p  { margin: 0; color: var(--text-muted); }
+
+    .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums lining-nums; }
+    .mono { font-family: var(--font-mono); }
+
+    a { color: inherit; text-decoration: none; }
+    button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+
+    ::selection { background: var(--accent); color: var(--accent-ink); }
+
+    /* =====================================================================
+       LAYOUT
+       ===================================================================== */
+    .wrap {
+      max-width: var(--max-w);
+      margin: 0 auto;
+      padding: 0 var(--s-6);
+      position: relative;
+      z-index: 1;
+    }
+
+    /* =====================================================================
+       NAV
+       ===================================================================== */
+    .nav {
+      position: sticky; top: 0; z-index: 40;
+      height: var(--nav-h);
+      display: flex; align-items: center;
+      backdrop-filter: saturate(140%) blur(14px);
+      -webkit-backdrop-filter: saturate(140%) blur(14px);
+      background: color-mix(in oklab, var(--bg) 78%, transparent);
+      border-bottom: 1px solid var(--hairline);
+    }
+    .nav-inner {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: var(--s-6);
+      width: 100%;
+    }
+    .brand {
+      display: flex; align-items: center; gap: var(--s-2);
+      font-family: var(--font-display);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      font-size: var(--text-lg);
+    }
+    .brand-mark { width: 22px; height: 22px; display: block; }
+    .brand-sub {
+      color: var(--text-faint);
+      font-family: var(--font-body);
+      font-weight: 500;
+      font-size: var(--text-xs);
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      padding-left: var(--s-3);
+      margin-left: var(--s-2);
+      border-left: 1px solid var(--border);
+    }
+    .nav-links {
+      display: flex; align-items: center; gap: var(--s-1);
+      justify-self: center;
+    }
+    .nav-link {
+      padding: 6px 12px;
+      border-radius: var(--r-md);
+      color: var(--text-muted);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      transition: color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
+    }
+    .nav-link:hover { color: var(--text); background: var(--surface-2); }
+    .nav-link.active { color: var(--text); }
+    .nav-link.active::after {
+      content: "";
+      display: block;
+      height: 2px;
+      margin-top: 4px;
+      background: var(--accent);
+      border-radius: 2px;
+    }
+    .nav-actions { display: flex; align-items: center; gap: var(--s-2); }
+
+    .search {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 10px;
+      background: var(--surface-solid);
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      width: 200px;
+      transition: border-color var(--dur-1) var(--ease), width var(--dur-2) var(--ease);
+    }
+    .search:focus-within { border-color: var(--border-strong); width: 240px; }
+    .search input {
+      background: transparent; border: 0; outline: 0;
+      color: var(--text); font: inherit; font-size: var(--text-sm);
+      width: 100%;
+    }
+    .search input::placeholder { color: var(--text-faint); }
+    .search .kbd {
+      color: var(--text-faint);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 2px 5px;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      background: var(--bg);
+    }
+
+    .select {
+      appearance: none;
+      -webkit-appearance: none;
+      background: var(--surface-solid);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font: inherit;
+      font-size: var(--text-sm);
+      padding: 6px 28px 6px 10px;
+      border-radius: var(--r-md);
+      background-image:
+        linear-gradient(45deg, transparent 50%, var(--text-muted) 50%),
+        linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);
+      background-position:
+        calc(100% - 14px) 50%,
+        calc(100% - 10px) 50%;
+      background-size: 4px 4px, 4px 4px;
+      background-repeat: no-repeat;
+      cursor: pointer;
+    }
+    .select:hover { border-color: var(--border-strong); }
+
+    .icon-btn {
+      width: 32px; height: 32px;
+      display: inline-flex; align-items: center; justify-content: center;
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      background: var(--surface-solid);
+      color: var(--text-muted);
+      transition: color var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease);
+    }
+    .icon-btn:hover { color: var(--text); border-color: var(--border-strong); }
+    .icon-btn svg { width: 16px; height: 16px; }
+
+    /* =====================================================================
+       HERO
+       ===================================================================== */
+    .hero {
+      padding: var(--s-16) 0 var(--s-10);
+      border-bottom: 1px solid var(--hairline);
+    }
+    .hero-top {
+      display: flex; align-items: center; gap: var(--s-3);
+      color: var(--text-muted);
+      font-size: var(--text-xs);
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      margin-bottom: var(--s-5);
+    }
+    .pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 3px 9px;
+      border: 1px solid var(--accent-line);
+      background: var(--accent-soft);
+      color: var(--accent);
+      border-radius: var(--r-full);
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      letter-spacing: 0.08em;
+    }
+    .pill .dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+    .hero h1 { max-width: 22ch; }
+    .hero h1 em {
+      font-style: normal;
+      color: var(--accent);
+      font-family: var(--font-display);
+    }
+    .hero-desc {
+      max-width: 62ch;
+      margin-top: var(--s-5);
+      font-size: var(--text-md);
+      color: var(--text-muted);
+    }
+    .hero-cta {
+      margin-top: var(--s-8);
+      display: flex; gap: var(--s-3); flex-wrap: wrap;
+    }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 16px;
+      border-radius: var(--r-md);
+      border: 1px solid var(--border);
+      background: var(--surface-solid);
+      color: var(--text);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      transition: transform var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
+    }
+    .btn:hover { border-color: var(--border-strong); }
+    .btn:active { transform: translateY(1px); }
+    .btn-primary {
+      background: var(--accent);
+      color: var(--accent-ink);
+      border-color: var(--accent);
+    }
+    .btn-primary:hover { background: var(--accent-2); border-color: var(--accent-2); }
+
+    /* KPI STRIP */
+    .kpi-strip {
+      margin-top: var(--s-12);
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      overflow: hidden;
+    }
+    .kpi {
+      padding: var(--s-6);
+      border-right: 1px solid var(--hairline);
+      display: flex; flex-direction: column; gap: var(--s-3);
+      position: relative;
+    }
+    .kpi:last-child { border-right: 0; }
+    .kpi-label {
+      color: var(--text-faint);
+      font-size: var(--text-xs);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+    .kpi-value {
+      font-family: var(--font-display);
+      font-size: var(--text-2xl);
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      display: flex; align-items: baseline; gap: 6px;
+    }
+    .kpi-value .num { font-family: var(--font-display); }
+    .kpi-value .unit { font-size: var(--text-sm); color: var(--text-faint); font-family: var(--font-body); font-weight: 500; letter-spacing: 0; }
+    .kpi-note {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .delta { display: inline-flex; align-items: center; gap: 3px; }
+    .delta.pos { color: var(--pos); }
+    .delta.neg { color: var(--neg); }
+    .delta.flat { color: var(--text-faint); }
+
+    .spark { height: 32px; width: 100%; }
+
+    /* =====================================================================
+       SECTION HEADERS
+       ===================================================================== */
+    section { padding: var(--s-16) 0; border-bottom: 1px solid var(--hairline); }
+    section:last-of-type { border-bottom: 0; }
+
+    .section-head {
+      display: flex; align-items: flex-end; justify-content: space-between;
+      gap: var(--s-6);
+      margin-bottom: var(--s-8);
+    }
+    .section-eyebrow {
+      color: var(--text-faint);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .section-desc {
+      max-width: 56ch;
+      color: var(--text-muted);
+      font-size: var(--text-md);
+      margin-top: 8px;
+    }
+
+    /* =====================================================================
+       FILTERS
+       ===================================================================== */
+    .filters {
+      display: flex; align-items: center; gap: var(--s-2);
+      flex-wrap: wrap;
+      padding: var(--s-3);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      border-radius: var(--r-lg);
+      margin-bottom: var(--s-4);
+    }
+    .filter-group {
+      display: flex; align-items: center; gap: 6px;
+    }
+    .chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 10px;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: var(--r-full);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      transition: color var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
+    }
+    .chip:hover { color: var(--text); border-color: var(--border-strong); }
+    .chip.active {
+      color: var(--accent);
+      border-color: var(--accent-line);
+      background: var(--accent-soft);
+    }
+    .filter-sep {
+      width: 1px; height: 20px; background: var(--border);
+      margin: 0 var(--s-2);
+    }
+    .filter-label {
+      font-size: var(--text-xs);
+      color: var(--text-faint);
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      margin-right: 4px;
+    }
+
+    /* =====================================================================
+       TABLE
+       ===================================================================== */
+    .table-wrap {
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      background: var(--surface);
+      overflow: hidden;
+    }
+    .table-scroll { overflow-x: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: var(--text-sm);
+    }
+    thead th {
+      position: sticky; top: 0;
+      background: var(--surface-solid);
+      text-align: left;
+      color: var(--text-faint);
+      font-weight: 500;
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+      user-select: none;
+    }
+    thead th.sortable { cursor: pointer; }
+    thead th.sortable:hover { color: var(--text); }
+    thead th .sort-caret { opacity: 0.4; margin-left: 4px; font-size: 9px; }
+    thead th.sorted { color: var(--accent); }
+    thead th.sorted .sort-caret { opacity: 1; color: var(--accent); }
+
+    tbody tr {
+      border-bottom: 1px solid var(--hairline);
+      transition: background var(--dur-1) var(--ease);
+      cursor: pointer;
+    }
+    tbody tr:last-child { border-bottom: 0; }
+    tbody tr:hover { background: var(--surface-2); }
+    tbody tr.selected {
+      background: var(--accent-soft);
+      box-shadow: inset 3px 0 0 var(--accent);
+    }
+    tbody td {
+      padding: 14px;
+      color: var(--text);
+      vertical-align: middle;
+    }
+    td.right { text-align: right; }
+    td .muted { color: var(--text-muted); }
+
+    .player-cell {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .avatar {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: var(--surface-3);
+      color: var(--text);
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 12px;
+      display: flex; align-items: center; justify-content: center;
+      letter-spacing: -0.02em;
+      border: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .player-name { font-weight: 500; }
+    .player-meta { font-size: var(--text-xs); color: var(--text-muted); }
+
+    .club-cell { display: flex; align-items: center; gap: 8px; }
+    .club-dot {
+      width: 10px; height: 10px; border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 3px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      background: var(--surface-3);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+    .badge.flag {
+      background: var(--accent-soft);
+      color: var(--accent);
+      border-color: var(--accent-line);
+    }
+
+    /* Score cell — the star metric */
+    .score {
+      display: inline-flex; align-items: center; gap: 8px;
+    }
+    .score-val {
+      font-family: var(--font-display);
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+    .score-bar {
+      width: 60px; height: 4px;
+      background: var(--surface-3);
+      border-radius: 2px;
+      overflow: hidden;
+      position: relative;
+    }
+    .score-bar > div {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 2px;
+    }
+
+    /* Confidence bar */
+    .conf {
+      display: inline-flex; align-items: center; gap: 6px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+    .conf-bar {
+      width: 40px; height: 3px;
+      background: var(--surface-3);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .conf-bar > div { height: 100%; background: var(--text-muted); }
+
+    /* =====================================================================
+       PLAYER DETAIL
+       ===================================================================== */
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1.05fr 1.4fr;
+      gap: var(--s-5);
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      padding: var(--s-6);
+      position: relative;
+    }
+    .card-head {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: var(--s-5);
+    }
+    .card-title {
+      font-family: var(--font-body);
+      font-weight: 500;
+      color: var(--text-faint);
+      font-size: var(--text-xs);
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+    }
+
+    .profile {
+      display: flex; align-items: flex-start; gap: var(--s-4);
+      padding-bottom: var(--s-5);
+      border-bottom: 1px solid var(--hairline);
+      margin-bottom: var(--s-5);
+    }
+    .profile .avatar { width: 56px; height: 56px; font-size: 18px; }
+    .profile .name {
+      font-family: var(--font-display);
+      font-size: var(--text-xl);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .profile .club-row {
+      display: flex; align-items: center; gap: 8px;
+      color: var(--text-muted);
+      font-size: var(--text-sm);
+      margin-top: 4px;
+    }
+    .profile .tags {
+      display: flex; gap: 6px; flex-wrap: wrap;
+      margin-top: 10px;
+    }
+    .big-score {
+      margin-left: auto;
+      text-align: right;
+    }
+    .big-score .val {
+      font-family: var(--font-display);
+      font-size: 40px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1;
+      color: var(--accent);
+    }
+    .big-score .label {
+      font-size: var(--text-xs);
+      color: var(--text-faint);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      margin-top: 4px;
+    }
+
+    .stat-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0;
+      border-top: 1px solid var(--hairline);
+    }
+    .stat-cell {
+      padding: var(--s-4) 0;
+      border-right: 1px solid var(--hairline);
+      padding-right: var(--s-4);
+    }
+    .stat-cell:last-child { border-right: 0; padding-right: 0; }
+    .stat-cell:not(:first-child) { padding-left: var(--s-4); }
+    .stat-cell .label { color: var(--text-faint); font-size: var(--text-xs); letter-spacing: 0.12em; text-transform: uppercase; }
+    .stat-cell .val { font-family: var(--font-display); font-size: var(--text-lg); font-weight: 700; margin-top: 4px; letter-spacing: -0.02em; }
+    .stat-cell .sub { color: var(--text-muted); font-size: var(--text-xs); margin-top: 2px; }
+
+    .scout-note {
+      margin-top: var(--s-5);
+      padding: var(--s-4);
+      background: var(--surface-2);
+      border: 1px solid var(--hairline);
+      border-left: 2px solid var(--accent);
+      border-radius: var(--r-md);
+    }
+    .scout-note .header {
+      display: flex; align-items: center; gap: 6px;
+      color: var(--accent);
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      margin-bottom: 8px;
+    }
+    .scout-note p {
+      color: var(--text);
+      font-size: var(--text-sm);
+      line-height: 1.6;
+    }
+
+    /* Radar */
+    .radar-block { display: grid; grid-template-columns: 1.2fr 1fr; gap: var(--s-5); }
+    #radar { width: 100%; aspect-ratio: 1; max-width: 320px; }
+
+    .expect-list { display: flex; flex-direction: column; gap: var(--s-3); }
+    .expect-row { display: flex; flex-direction: column; gap: 4px; }
+    .expect-top {
+      display: flex; justify-content: space-between; align-items: baseline;
+      font-size: var(--text-sm);
+    }
+    .expect-top .label { color: var(--text-muted); }
+    .expect-top .val { font-family: var(--font-mono); font-size: 12.5px; }
+    .expect-top .val .good { color: var(--pos); }
+    .expect-top .val .bad { color: var(--neg); }
+    .expect-bar {
+      position: relative;
+      height: 6px;
+      background: var(--surface-3);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .expect-bar .expected {
+      position: absolute; top: 0; bottom: 0;
+      background: var(--surface-3);
+      border-right: 2px dashed var(--text-faint);
+    }
+    .expect-bar .actual {
+      position: absolute; top: 0; bottom: 0;
+      background: var(--accent);
+      border-radius: 3px;
+    }
+
+    /* Trend chart */
+    #trend { width: 100%; height: 220px; display: block; }
+    .trend-legend {
+      display: flex; gap: var(--s-4); font-size: var(--text-xs); color: var(--text-muted);
+      margin-top: var(--s-3);
+    }
+    .trend-legend .dot { width: 8px; height: 8px; border-radius: 2px; display: inline-block; margin-right: 6px; vertical-align: middle; }
+
+    /* =====================================================================
+       MATCH CONTEXT
+       ===================================================================== */
+    .match-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.2fr;
+      gap: var(--s-5);
+    }
+    .match-head {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: var(--s-4);
+      padding: var(--s-5);
+      border-bottom: 1px solid var(--hairline);
+    }
+    .match-side { display: flex; align-items: center; gap: 12px; }
+    .match-side.away { justify-content: flex-end; }
+    .match-side .avatar { border-radius: 6px; width: 40px; height: 40px; }
+    .match-side .club-name { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.02em; }
+    .match-score {
+      font-family: var(--font-display);
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .match-score .dash { color: var(--text-faint); font-weight: 500; }
+
+    .match-meta {
+      display: flex; gap: var(--s-4); padding: var(--s-4) var(--s-5);
+      color: var(--text-muted);
+      font-size: var(--text-xs);
+      border-bottom: 1px solid var(--hairline);
+    }
+    .match-meta .item { display: flex; gap: 6px; align-items: center; }
+    .match-meta .item .k { color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.12em; }
+    .match-meta .item .v { color: var(--text); font-family: var(--font-mono); }
+
+    .actions-list {
+      display: flex; flex-direction: column;
+      max-height: 460px; overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+    .action-row {
+      display: grid;
+      grid-template-columns: 44px 1fr auto;
+      gap: var(--s-4);
+      padding: var(--s-4);
+      border-bottom: 1px solid var(--hairline);
+      align-items: center;
+    }
+    .action-row:last-child { border-bottom: 0; }
+    .action-min {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-faint);
+      background: var(--surface-2);
+      padding: 2px 6px;
+      border-radius: 3px;
+      text-align: center;
+      justify-self: start;
+    }
+    .action-body .type { font-weight: 500; font-size: var(--text-sm); }
+    .action-body .note { color: var(--text-muted); font-size: var(--text-xs); margin-top: 3px; max-width: 46ch; }
+    .action-nums {
+      text-align: right;
+      display: flex; flex-direction: column; gap: 2px;
+    }
+    .action-nums .contrib {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 15px;
+      color: var(--accent);
+    }
+    .action-nums .breakdown {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      color: var(--text-faint);
+    }
+
+    .future-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 3px 8px;
+      background: var(--surface-2);
+      border: 1px dashed var(--border-strong);
+      color: var(--text-muted);
+      border-radius: var(--r-full);
+      font-size: 10.5px;
+      font-family: var(--font-mono);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .future-note {
+      margin-top: var(--s-4);
+      padding: var(--s-4);
+      background: var(--surface-2);
+      border: 1px dashed var(--border-strong);
+      border-radius: var(--r-md);
+      color: var(--text-muted);
+      font-size: var(--text-sm);
+    }
+    .future-note strong { color: var(--text); font-weight: 500; }
+
+    /* =====================================================================
+       METHODOLOGY
+       ===================================================================== */
+    .method-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: var(--s-5);
+    }
+    .method-card {
+      padding: var(--s-6);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+    }
+    .method-num {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--accent);
+      letter-spacing: 0.14em;
+      margin-bottom: var(--s-3);
+    }
+    .method-card h4 { margin-bottom: var(--s-3); }
+    .method-card p { color: var(--text-muted); font-size: var(--text-sm); line-height: 1.65; }
+    .method-card .formula {
+      margin-top: var(--s-4);
+      padding: var(--s-3);
+      background: var(--bg-elev);
+      border: 1px solid var(--hairline);
+      border-radius: var(--r-md);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text);
+    }
+    .method-card .formula .k { color: var(--accent); }
+
+    /* =====================================================================
+       FOOTER
+       ===================================================================== */
+    footer {
+      padding: var(--s-10) 0;
+      border-top: 1px solid var(--hairline);
+      color: var(--text-muted);
+      font-size: var(--text-sm);
+    }
+    .footer-inner {
+      display: flex; justify-content: space-between; align-items: center;
+      gap: var(--s-6);
+      flex-wrap: wrap;
+    }
+    .footer-links { display: flex; gap: var(--s-5); }
+    .footer-links a { color: var(--text-muted); }
+    .footer-links a:hover { color: var(--text); }
+
+    /* =====================================================================
+       ACCESSIBILITY
+       ===================================================================== */
+    :focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+      border-radius: var(--r-sm);
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * { transition: none !important; animation: none !important; }
+      html { scroll-behavior: auto; }
+    }
+
+    /* =====================================================================
+       RESPONSIVE
+       ===================================================================== */
+    @media (max-width: 1080px) {
+      .kpi-strip { grid-template-columns: repeat(2, 1fr); }
+      .kpi:nth-child(2) { border-right: 0; }
+      .kpi:nth-child(1), .kpi:nth-child(2) { border-bottom: 1px solid var(--hairline); }
+      .detail-grid { grid-template-columns: 1fr; }
+      .match-grid { grid-template-columns: 1fr; }
+      .method-grid { grid-template-columns: 1fr; }
+      .radar-block { grid-template-columns: 1fr; }
+      .nav-links { display: none; }
+      .nav-inner { grid-template-columns: auto 1fr auto; }
+    }
+    @media (max-width: 720px) {
+      :root { --text-3xl: 34px; --text-2xl: 24px; --text-xl: 19px; }
+      .wrap { padding: 0 var(--s-4); }
+      .hero { padding: var(--s-10) 0 var(--s-8); }
+      section { padding: var(--s-10) 0; }
+      .kpi-strip { grid-template-columns: 1fr; }
+      .kpi { border-right: 0; border-bottom: 1px solid var(--hairline); }
+      .kpi:last-child { border-bottom: 0; }
+      .search { width: 140px; }
+      .search:focus-within { width: 160px; }
+      .brand-sub { display: none; }
+      .section-head { flex-direction: column; align-items: flex-start; }
+      .stat-row { grid-template-columns: 1fr; }
+      .stat-cell { border-right: 0; border-bottom: 1px solid var(--hairline); padding: var(--s-3) 0 !important; }
+      .stat-cell:last-child { border-bottom: 0; }
+      .filters { padding: var(--s-3); }
+      td.hide-sm, th.hide-sm { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- =====================================================================
+     TOP NAV
+     ===================================================================== -->
+<header class="nav" role="banner">
+  <div class="wrap nav-inner">
+    <a href="#top" class="brand" aria-label="Fulcrum home">
+      <!-- Logo mark: geometric triangle with a leverage/pivot dot -->
+      <svg class="brand-mark" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <path d="M6 24 L16 6 L26 24 Z" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/>
+        <circle cx="16" cy="20.5" r="2.4" fill="var(--accent)"/>
+      </svg>
+      <span>Fulcrum</span>
+      <span class="brand-sub">Championship</span>
+    </a>
+
+    <nav class="nav-links" aria-label="Primary">
+      <a href="#dashboard" class="nav-link active">Dashboard</a>
+      <a href="#leaderboard" class="nav-link">Players</a>
+      <a href="#teams" class="nav-link">Teams</a>
+      <a href="#match" class="nav-link">Matches</a>
+      <a href="#methodology" class="nav-link">Methodology</a>
+    </nav>
+
+    <div class="nav-actions">
+      <label class="search" aria-label="Search players and clubs">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--text-faint)"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="search" type="search" placeholder="Search players, clubs…" />
+        <span class="kbd">⌘K</span>
+      </label>
+
+      <select class="select" id="competition" aria-label="Competition">
+        <option value="championship">EFL Championship</option>
+        <option value="league1" disabled>EFL League One (soon)</option>
+        <option value="scot-prem" disabled>Scottish Premiership (soon)</option>
+      </select>
+
+      <button class="icon-btn" id="theme-toggle" aria-label="Toggle theme" title="Toggle theme">
+        <svg id="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<a id="top"></a>
+
+<!-- =====================================================================
+     HERO / OVERVIEW
+     ===================================================================== -->
+<section class="hero" id="dashboard">
+  <div class="wrap">
+    <div class="hero-top">
+      <span class="pill"><span class="dot"></span> Live · 2025/26 Season</span>
+      <span>Championship-first · League One and Scottish Premiership on roadmap</span>
+    </div>
+
+    <h1>Scouting metrics that read the game <em>in context.</em></h1>
+
+    <p class="hero-desc">
+      Fulcrum evaluates player performance relative to role, match circumstance, team strength, and
+      opposition quality. It surfaces talent that raw counting stats miss — undervalued creators on mid-table
+      sides, destroyers whose work never reaches the scoresheet, keepers who quietly hold high lines.
+      Built as a scouting layer, not a replacement for traditional ratings.
+    </p>
+
+    <div class="hero-cta">
+      <a class="btn btn-primary" href="#leaderboard">
+        Explore leaderboard
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+      </a>
+      <a class="btn" href="#methodology">Read methodology</a>
+    </div>
+
+    <!-- KPI STRIP -->
+    <div class="kpi-strip" role="list" aria-label="Season overview">
+      <div class="kpi" role="listitem">
+        <div class="kpi-label">Players tracked</div>
+        <div class="kpi-value"><span class="num">618</span></div>
+        <div class="kpi-note"><span class="delta pos">▲ 24</span> since October window</div>
+      </div>
+      <div class="kpi" role="listitem">
+        <div class="kpi-label">Matches analyzed</div>
+        <div class="kpi-value"><span class="num">312</span><span class="unit">/ 552</span></div>
+        <div class="kpi-note">
+          <svg class="spark" viewBox="0 0 100 32" preserveAspectRatio="none" aria-hidden="true">
+            <polyline fill="none" stroke="var(--accent)" stroke-width="1.5"
+              points="0,22 10,20 20,18 30,19 40,15 50,13 60,14 70,10 80,8 90,6 100,4"/>
+          </svg>
+        </div>
+      </div>
+      <div class="kpi" role="listitem">
+        <div class="kpi-label">Top context-adjusted</div>
+        <div class="kpi-value"><span class="num">8.74</span></div>
+        <div class="kpi-note">C. Whitmore · Leeds United</div>
+      </div>
+      <div class="kpi" role="listitem">
+        <div class="kpi-label">Under-the-radar players</div>
+        <div class="kpi-value"><span class="num">47</span></div>
+        <div class="kpi-note"><span class="delta pos">▲ 6</span> vs. last window</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     LEADERBOARD
+     ===================================================================== -->
+<section id="leaderboard">
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <div class="section-eyebrow">01 · Player Leaderboard</div>
+        <h2>Context-adjusted rankings</h2>
+        <p class="section-desc">
+          Sortable across component metrics. Every score accounts for role, minute-by-minute match state,
+          team strength, and opponent quality. Filter for undervalued profiles or high performers on weaker sides.
+        </p>
+      </div>
+      <div>
+        <span class="badge">2025/26 · Matchday 24</span>
+      </div>
+    </div>
+
+    <div class="filters" role="toolbar" aria-label="Filters">
+      <span class="filter-label">Position</span>
+      <div class="filter-group" data-filter="position">
+        <button class="chip active" data-value="all">All</button>
+        <button class="chip" data-value="GK">GK</button>
+        <button class="chip" data-value="CB">CB</button>
+        <button class="chip" data-value="LB">FB</button>
+        <button class="chip" data-value="DM">DM</button>
+        <button class="chip" data-value="CM">CM</button>
+        <button class="chip" data-value="AM">AM</button>
+        <button class="chip" data-value="LW">W</button>
+        <button class="chip" data-value="ST">ST</button>
+      </div>
+      <div class="filter-sep" aria-hidden="true"></div>
+      <span class="filter-label">Focus</span>
+      <div class="filter-group" data-filter="focus">
+        <button class="chip active" data-value="all">All</button>
+        <button class="chip" data-value="undervalued">Undervalued</button>
+        <button class="chip" data-value="highconf">High confidence</button>
+        <button class="chip" data-value="under23">Under 23</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <div class="table-scroll">
+        <table id="leaderboard-table">
+          <thead>
+            <tr>
+              <th style="width: 40px;">#</th>
+              <th class="sortable" data-sort="name">Player <span class="sort-caret">▲▼</span></th>
+              <th class="sortable hide-sm" data-sort="club">Club <span class="sort-caret">▲▼</span></th>
+              <th class="sortable hide-sm" data-sort="position">Role <span class="sort-caret">▲▼</span></th>
+              <th class="sortable sorted right" data-sort="caScore" data-dir="desc">CA Score <span class="sort-caret">▼</span></th>
+              <th class="sortable right hide-sm" data-sort="actionValue">Action Val <span class="sort-caret">▲▼</span></th>
+              <th class="sortable right hide-sm" data-sort="roleFit">Role Fit <span class="sort-caret">▲▼</span></th>
+              <th class="sortable right hide-sm" data-sort="minutes">Minutes <span class="sort-caret">▲▼</span></th>
+              <th class="sortable right hide-sm" data-sort="consistency">Consistency <span class="sort-caret">▲▼</span></th>
+              <th class="right hide-sm">Sample</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     PLAYER DETAIL
+     ===================================================================== -->
+<section id="player-detail">
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <div class="section-eyebrow">02 · Player Profile</div>
+        <h2 id="detail-heading">Player breakdown</h2>
+        <p class="section-desc">
+          Select any row from the leaderboard to update this section. Radar shows sub-components; the trend chart
+          tracks context-adjusted score across the last twelve matches with role expectation as reference.
+        </p>
+      </div>
+    </div>
+
+    <div class="detail-grid">
+      <!-- LEFT: profile + role expectation + scouting note -->
+      <div class="card" id="profile-card">
+        <div class="profile">
+          <div class="avatar" id="p-avatar">CW</div>
+          <div>
+            <div class="name" id="p-name">Callum Whitmore</div>
+            <div class="club-row">
+              <span class="club-dot" id="p-clubdot" style="background:#FFCD00"></span>
+              <span id="p-club">Leeds United</span>
+              <span style="color:var(--text-faint)">·</span>
+              <span id="p-position">AM · Creative 10</span>
+            </div>
+            <div class="tags">
+              <span class="badge" id="p-age">24 yrs</span>
+              <span class="badge flag" id="p-flag" hidden>Undervalued</span>
+            </div>
+          </div>
+          <div class="big-score">
+            <div class="val num" id="p-score">8.74</div>
+            <div class="label">CA Score</div>
+          </div>
+        </div>
+
+        <div class="stat-row">
+          <div class="stat-cell">
+            <div class="label">Minutes</div>
+            <div class="val num" id="p-minutes">2,418</div>
+            <div class="sub" id="p-matches">29 matches</div>
+          </div>
+          <div class="stat-cell">
+            <div class="label">G + A</div>
+            <div class="val num" id="p-ga">9 + 12</div>
+            <div class="sub" id="p-xga">xG 8.2 · xA 10.9</div>
+          </div>
+          <div class="stat-cell">
+            <div class="label">Consistency</div>
+            <div class="val num" id="p-consistency">88</div>
+            <div class="sub" id="p-sample">96% sample conf.</div>
+          </div>
+        </div>
+
+        <div class="card-head" style="margin-top: var(--s-6); margin-bottom: var(--s-3)">
+          <span class="card-title">Role expectation vs. actual</span>
+        </div>
+        <div class="expect-list" id="expect-list">
+          <!-- injected -->
+        </div>
+
+        <div class="scout-note">
+          <div class="header">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 2 L15 9 L22 10 L17 15 L18 22 L12 18 L6 22 L7 15 L2 10 L9 9 Z"/></svg>
+            Scouting interpretation
+          </div>
+          <p id="p-note">…</p>
+        </div>
+      </div>
+
+      <!-- RIGHT: radar + trend -->
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">Sub-component breakdown</span>
+          <span class="badge">Percentile vs. Championship peers</span>
+        </div>
+        <div class="radar-block">
+          <svg id="radar" viewBox="-160 -160 320 320" role="img" aria-label="Radar chart of player sub-components">
+            <!-- injected -->
+          </svg>
+          <div class="expect-list" id="radar-legend"><!-- injected --></div>
+        </div>
+
+        <div class="card-head" style="margin-top: var(--s-8);">
+          <span class="card-title">Match-by-match CA score · last 12</span>
+        </div>
+        <svg id="trend" viewBox="0 0 600 220" preserveAspectRatio="none" aria-label="Match-by-match trend"></svg>
+        <div class="trend-legend">
+          <span><span class="dot" style="background: var(--accent)"></span>Context-adjusted score</span>
+          <span><span class="dot" style="background: var(--text-faint); opacity: .8"></span>Role expectation baseline</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     MATCH CONTEXT
+     ===================================================================== -->
+<section id="match">
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <div class="section-eyebrow">03 · Match Context</div>
+        <h2>How actions become scores</h2>
+        <p class="section-desc">
+          A worked example — Sunderland 2-1 Leeds United, 8 November 2025. Every on-ball action is assigned a raw
+          value; a context multiplier adjusts for role, game state, and opponent quality. The player&rsquo;s
+          match-level contribution is the sum of contributions above their role baseline.
+        </p>
+      </div>
+      <span class="future-badge">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        Match-impact rating · coming later
+      </span>
+    </div>
+
+    <div class="match-grid">
+      <!-- LEFT: match summary -->
+      <div class="card" style="padding: 0">
+        <div class="match-head">
+          <div class="match-side">
+            <div class="avatar" style="background:#EB172B; color:#fff">SUN</div>
+            <div>
+              <div class="club-name">Sunderland</div>
+              <div style="font-size: 12px; color: var(--text-muted); font-family: var(--font-mono);">xG 1.4 · Poss 43%</div>
+            </div>
+          </div>
+          <div class="match-score">
+            <span class="num">2</span><span class="dash">–</span><span class="num">1</span>
+          </div>
+          <div class="match-side away">
+            <div>
+              <div class="club-name" style="text-align:right">Leeds United</div>
+              <div style="font-size: 12px; color: var(--text-muted); font-family: var(--font-mono); text-align:right">xG 2.1 · Poss 57%</div>
+            </div>
+            <div class="avatar" style="background:#FFCD00; color:#111">LEE</div>
+          </div>
+        </div>
+        <div class="match-meta">
+          <div class="item"><span class="k">Date</span><span class="v">08 Nov 2025</span></div>
+          <div class="item"><span class="k">Venue</span><span class="v">Stadium of Light</span></div>
+          <div class="item"><span class="k">Focus</span><span class="v" style="color: var(--accent)">I. Adebayo</span></div>
+        </div>
+
+        <div style="padding: var(--s-5)">
+          <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--s-3);">
+            <span class="card-title">Match CA contribution</span>
+            <span class="num" style="font-family: var(--font-display); font-size: 26px; font-weight: 700; color: var(--accent); letter-spacing: -0.02em;">+2.00</span>
+          </div>
+          <div style="height: 8px; background: var(--surface-3); border-radius: 4px; overflow: hidden;">
+            <div style="width: 78%; height: 100%; background: var(--accent);"></div>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 11px; color: var(--text-faint); font-family: var(--font-mono);">
+            <span>Role baseline · 0.42</span>
+            <span>Match total · 2.42</span>
+          </div>
+
+          <div class="future-note">
+            <strong>Coming later — Match-impact rating.</strong>
+            Separate from context-adjusted scouting score, this planned metric will quantify how much a
+            single player influenced the outcome of a single match — closer to a &ldquo;man of the match&rdquo;
+            model than a scouting projection.
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: action-by-action -->
+      <div class="card" style="padding: 0">
+        <div style="padding: var(--s-4) var(--s-5); border-bottom: 1px solid var(--hairline); display: flex; justify-content: space-between; align-items: center">
+          <span class="card-title">Action timeline · Adebayo</span>
+          <span style="font-size: 11px; color: var(--text-faint); font-family: var(--font-mono);">RAW · × MULT · = CONTRIB</span>
+        </div>
+        <div class="actions-list" id="actions-list">
+          <!-- injected -->
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     METHODOLOGY
+     ===================================================================== -->
+<section id="methodology">
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <div class="section-eyebrow">04 · Methodology</div>
+        <h2>What the score measures</h2>
+        <p class="section-desc">
+          The context-adjusted score answers one question: given this player&rsquo;s role, the match state,
+          the team around them, and the opposition they faced, are they performing above expectation?
+        </p>
+      </div>
+    </div>
+
+    <div class="method-grid">
+      <div class="method-card">
+        <div class="method-num">01 / ACTION VALUE</div>
+        <h4>Every action carries a possession-value</h4>
+        <p>
+          Each on-ball and off-ball action is priced by how much it changed the probability of a goal in the
+          following possession sequence. A recovery under high press is worth more than an unpressured back-pass;
+          a chance-creating cutback is worth more than an aimless cross.
+        </p>
+        <div class="formula">
+          AV(a) = <span class="k">P(goal | state after a)</span> − <span class="k">P(goal | state before a)</span>
+        </div>
+      </div>
+
+      <div class="method-card">
+        <div class="method-num">02 / ROLE EXPECTATION</div>
+        <h4>Baseline set by role, not position</h4>
+        <p>
+          Position labels (CB, ST) are too coarse. Fulcrum classifies each player into one of thirty-two
+          fine-grained roles &mdash; ball-playing CB, destroyer DM, half-space creator &mdash; and models the
+          expected AV output for that role given league and minutes played.
+        </p>
+        <div class="formula">
+          Δ<sub>role</sub> = AV<sub>actual</sub> − <span class="k">E[AV | role, minutes]</span>
+        </div>
+      </div>
+
+      <div class="method-card">
+        <div class="method-num">03 / CONTEXT ADJUSTMENT</div>
+        <h4>Match state, team strength, opposition</h4>
+        <p>
+          A goal scored while chasing at 0-2 against a top-four side is not the same event as a goal scored
+          leading at home against a relegation-side. A multiplier stack of match state, team-strength gap, and
+          opponent quality tunes each action&rsquo;s contribution.
+        </p>
+        <div class="formula">
+          Contrib(a) = AV(a) · <span class="k">M<sub>state</sub></span> · <span class="k">M<sub>gap</sub></span> · <span class="k">M<sub>opp</sub></span>
+        </div>
+      </div>
+
+      <div class="method-card">
+        <div class="method-num">04 / WHY IT MATTERS</div>
+        <h4>Built for scouting decisions</h4>
+        <p>
+          Traditional ratings reward volume on strong teams. The context-adjusted score is designed to surface
+          the destroyer keeping a bottom-six side afloat, the young creator generating chances against low blocks,
+          the keeper whose distribution enables a possession identity. It is a scouting lens, not a rating replacement.
+        </p>
+        <div class="formula">
+          Score = 5 · <span class="k">σ</span>(Σ Contrib per 90 · sample_conf) + 3
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     FOOTER
+     ===================================================================== -->
+<footer>
+  <div class="wrap footer-inner">
+    <div style="display:flex; align-items:center; gap: var(--s-3)">
+      <svg width="16" height="16" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <path d="M6 24 L16 6 L26 24 Z" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/>
+        <circle cx="16" cy="20.5" r="2.4" fill="var(--accent)"/>
+      </svg>
+      <span style="color: var(--text); font-family: var(--font-display); font-weight: 700; letter-spacing: -0.02em;">Fulcrum</span>
+      <span style="color: var(--text-faint); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.14em; padding-left: var(--s-3); border-left: 1px solid var(--border); margin-left: var(--s-2);">Championship Intelligence</span>
+    </div>
+    <div class="footer-links">
+      <a href="#methodology">Methodology</a>
+      <a href="#">Data sources</a>
+      <a href="#">Roadmap</a>
+      <a href="#">Contact</a>
+    </div>
+    <div style="color: var(--text-faint); font-size: var(--text-xs); font-family: var(--font-mono);">
+      v0.4 · 2025/26 preview
+    </div>
+  </div>
+</footer>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+
+</body>
+</html>
