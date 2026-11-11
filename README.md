@@ -7,6 +7,8 @@ match state, their team's strength, and the opposition they faced.
 
 ## Contents
 
+- `docs/explanation.md` — **start here**: the criterion (context-adjusted
+  metric), background, and context of the project.
 - `index.html` — the main app (semantic HTML + embedded CSS + design system).
 - `app.js` — interactivity: theme toggle, sort, filter, search, player select,
   radar chart, trend chart, action-timeline rendering.
